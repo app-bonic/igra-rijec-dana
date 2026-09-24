@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Riječ dana</title>
+<meta name="description" content="Pogodi hrvatsku riječ od 5 slova u 6 pokušaja. Svaki dan nova riječ, s pravom hrvatskom abecedom (DŽ, LJ, NJ kao jedno slovo).">
+<meta name="theme-color" content="#120a33">
+<link rel="icon" href="zajednicko/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="zajednicko/apple-touch-icon.png">
+<link rel="stylesheet" href="zajednicko/igre.css?v=09b9727d">
+<style>
+  .igraliste { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  .nacin { display: flex; justify-content: center; gap: 8px; }
+  .nacin button { padding: 7px 16px; border-radius: 999px; border: 1.5px solid var(--crta); background: var(--plo); cursor: pointer; font-weight: 600; }
+  .nacin button[aria-pressed="true"] { background: var(--zelena); color: #033117; border-color: var(--zelena); }
+  .mreza { display: grid; grid-template-rows: repeat(6, 1fr); gap: 7px; width: min(100%, 340px); margin: 0 auto; }
+  .red { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+  .polje { aspect-ratio: 1; display: grid; place-items: center; border-radius: 12px; border: 2px solid var(--crta); background: #0005; font: 900 italic clamp(22px, 7vw, 32px)/1 var(--naslovni); text-transform: uppercase; transition: transform .15s; }
+  .polje.puno { border-color: #ffffff77; animation: poskok .15s; }
+  .polje.zeleno { background: #19b95d; border-color: #5dff9b; box-shadow: 0 0 16px #5dff9b77; }
+  .polje.zuto { background: #c99a00; border-color: #ffe14d; box-shadow: 0 0 16px #ffe14d66; }
+  .polje.sivo { background: #3a3060; border-color: #3a3060; color: #b9b2da; }
+  .polje.okreni { animation: okreni .45s ease both; }
+  @keyframes okreni { 0% { transform: rotateX(0); } 50% { transform: rotateX(90deg); } 100% { transform: rotateX(0); } }
+  .tipkovnica { display: flex; flex-direction: column; gap: 7px; user-select: none; }
+  .tipkovnica .r { display: flex; gap: 4px; justify-content: center; }
+  .tipka { flex: 1 1 0; max-width: 46px; min-width: 0; height: 54px; padding: 0; border: 0; border-radius: 10px; background: #ffffff26; color: #fff; font: 700 17px/1 'Fredoka', sans-serif; cursor: pointer; box-shadow: 0 4px 0 #0007; }
+  .tipka:active { transform: translateY(3px); box-shadow: 0 1px 0 #0007; }
+  .tipka.siroka { max-width: 76px; flex-grow: 1.6; font-size: 13.5px; }
+  .tipka.zeleno { background: #19b95d; } .tipka.zuto { background: #c99a00; } .tipka.sivo { background: #2a2250; color: #8b83b5; }
+  .statistika { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; }
+  .statistika b { display: block; font: 900 italic 30px/1 var(--naslovni); color: var(--zelena); }
+  .statistika small { color: var(--blijedo); font-size: 13px; }
+  .raspodjela { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+  .raspodjela div { display: flex; gap: 8px; align-items: center; font-weight: 600; }
+  .raspodjela span.t { height: 22px; min-width: 24px; background: #ffffff26; border-radius: 6px; padding: 0 8px; display: flex; align-items: center; justify-content: flex-end; font-size: 13px; }
+  .raspodjela span.t.sad { background: var(--zelena); color: #033117; }
+</style>
+</head>
+<body data-igra="igra-rijec-dana">
+<header class="ig-vrh"></header>
+<main class="ig-omot">
+  <section class="ig-naslov"><span class="znak"></span><div><h1>Riječ dana</h1><p>Pogodi riječ od 5 slova u 6 pokušaja. <b style="color:#5dff9b">Zeleno</b> = slovo na pravom mjestu, <b style="color:#ffe14d">žuto</b> = slovo je u riječi, ali drugdje. DŽ, LJ i NJ su jedno slovo.</p></div></section>
+
+  <div class="stupci">
+    <div class="igraliste">
+      <div class="nacin" role="radiogroup" aria-label="Način igre">
+        <button type="button" data-nacin="dan" aria-pressed="true">Riječ dana</button>
+        <button type="button" data-nacin="vjezba" aria-pressed="false">Vježba (neograničeno)</button>
+      </div>
+      <div class="mreza" id="mreza" aria-live="polite"></div>
+      <div class="tipkovnica" id="tipkovnica"></div>
+    </div>
+    <aside class="ploca" id="kraj">
+      <h2>Statistika</h2>
+      <div class="statistika">
+        <div><b id="sOdigrano">0</b><small>odigrano</small></div>
+        <div><b id="sPosto">0</b><small>% pobjeda</small></div>
+        <div><b id="sNiz">0</b><small>niz</small></div>
+        <div><b id="sNajdulji">0</b><small>najdulji niz</small></div>
+      </div>
+      <div class="raspodjela" id="raspodjela"></div>
+      <div class="kraj-igre" id="poruka" hidden style="margin-top:16px"></div>
+    </aside>
+  </div>
+</main>
+<footer class="ig-dno"></footer>
+<script src="zajednicko/igre.js?v=4689b224"></script>
+<script src="rijeci.js?v=25701e08"></script>
+<script>
+'use strict';
+const { $, $$, esc, zvuk, konfeti, obavijest, efekt, dijeli, lokalno, rekord, prng, promijesaj, danas } = IG;
+
+// ---------- hrvatska abeceda: DŽ, LJ, NJ su jedno slovo ----------
+const DIGRAFI = ['DŽ', 'LJ', 'NJ'];
+function slova(rijec) {
+  const r = rijec.toLocaleUpperCase('hr'), van = [];
+  for (let i = 0; i < r.length; i++) {
+    const d = r.slice(i, i + 2);
+    if (DIGRAFI.includes(d)) { van.push(d); i++; } else van.push(r[i]);
+  }
+  return van;
+}
+const RIJECI = [...new Set(window.RIJECI_5.map(w => w.toLocaleUpperCase('hr')))].filter(w => slova(w).length === 5);
+
+// ---------- dnevna riječ ----------
+const POCETAK = Date.UTC(2026, 0, 1);
+const redoslijed = promijesaj(RIJECI, prng('app-bonic-rijec-dana'));
+const brojDana = () => { const d = new Date(); return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - POCETAK) / 86400000); };
+const rijecDana = () => redoslijed[((brojDana() % redoslijed.length) + redoslijed.length) % redoslijed.length];
+
+let nacin = 'dan', cilj, pokusaji, trenutni, gotovo;
+const RED_TIPKI = [['E', 'R', 'T', 'Z', 'U', 'I', 'O', 'P', 'Š', 'Đ'], ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'Č', 'Ć', 'Ž'], ['ENTER', 'C', 'V', 'B', 'N', 'M', 'DŽ', 'LJ', 'NJ', '⌫']];
+
+function novaIgra() {
+  if (nacin === 'dan') {
+    cilj = slova(rijecDana());
+    const s = lokalno.uzmi('rijec-dana-stanje');
+    pokusaji = s && s.dan === danas() ? s.pokusaji : [];
+  } else {
+    cilj = slova(RIJECI[Math.floor(Math.random() * RIJECI.length)]);
+    pokusaji = [];
+  }
+  trenutni = [];
+  gotovo = pokusaji.length >= 6 || pokusaji.some(p => p.join('') === cilj.join(''));
+  crtajMrezu(); crtajTipkovnicu(); statistika();
+  $('#poruka').hidden = true;
+  if (gotovo) prikaziKraj(false);
+}
+
+function ocijeni(pok) {
+  const boje = Array(5).fill('sivo'), ostatak = {};
+  pok.forEach((s, i) => { if (s === cilj[i]) boje[i] = 'zeleno'; else ostatak[cilj[i]] = (ostatak[cilj[i]] || 0) + 1; });
+  pok.forEach((s, i) => { if (boje[i] !== 'zeleno' && ostatak[s]) { boje[i] = 'zuto'; ostatak[s]--; } });
+  return boje;
+}
+
+function crtajMrezu(animiraj = -1) {
+  $('#mreza').innerHTML = Array.from({ length: 6 }, (_, r) => {
+    const p = pokusaji[r], boje = p ? ocijeni(p) : null, s = p || (r === pokusaji.length ? trenutni : []);
+    return `<div class="red" data-r="${r}">${Array.from({ length: 5 }, (_, i) => {
+      const k = boje ? boje[i] : s[i] ? 'puno' : '';
+      return `<div class="polje ${k}${r === animiraj ? ' okreni' : ''}" style="${r === animiraj ? `animation-delay:${i * .12}s` : ''}">${esc(s[i] || '')}</div>`;
+    }).join('')}</div>`;
+  }).join('');
+}
+function crtajTipkovnicu() {
+  const stanje = {};
+  const rang = { sivo: 1, zuto: 2, zeleno: 3 };
+  pokusaji.forEach(p => ocijeni(p).forEach((b, i) => { if (!stanje[p[i]] || rang[b] > rang[stanje[p[i]]]) stanje[p[i]] = b; }));
+  $('#tipkovnica').innerHTML = RED_TIPKI.map(r => `<div class="r">${r.map(t => `<button type="button" class="tipka ${t.length > 2 ? 'siroka' : ''} ${stanje[t] || ''}" data-t="${t}" aria-label="${t === '⌫' ? 'Obriši' : t}">${t}</button>`).join('')}</div>`).join('');
+}
+
+function unos(t) {
+  if (gotovo) return;
+  if (t === '⌫') { trenutni.pop(); zvuk.klik(); }
+  else if (t === 'ENTER') return potvrdi();
+  else if (trenutni.length < 5) { trenutni.push(t); zvuk.klik(); }
+  crtajMrezu();
+}
+function potvrdi() {
+  const red = $(`.red[data-r="${pokusaji.length}"]`);
+  if (trenutni.length < 5) { efekt(red, 'tresi'); zvuk.krivo(); return obavijest('Riječ mora imati 5 slova.'); }
+  pokusaji.push([...trenutni]); trenutni = [];
+  const pogodak = pokusaji.at(-1).join('') === cilj.join('');
+  gotovo = pogodak || pokusaji.length >= 6;
+  if (nacin === 'dan') lokalno.stavi('rijec-dana-stanje', { dan: danas(), pokusaji });
+  crtajMrezu(pokusaji.length - 1);
+  setTimeout(() => {
+    crtajTipkovnicu();
+    if (gotovo) {
+      if (nacin === 'dan') upisiStatistiku(pogodak);
+      prikaziKraj(true);
+    } else zvuk.bod();
+  }, 700);
+}
+
+function upisiStatistiku(pogodak) {
+  const s = lokalno.uzmi('rijec-dana-stat', { odigrano: 0, pobjede: 0, niz: 0, najdulji: 0, raspodjela: [0, 0, 0, 0, 0, 0], zadnjiDan: null });
+  if (s.zadnjiDan === danas()) return;
+  s.odigrano++; s.zadnjiDan = danas();
+  if (pogodak) { s.pobjede++; s.niz++; s.najdulji = Math.max(s.najdulji, s.niz); s.raspodjela[pokusaji.length - 1]++; rekord.predlozi(s.niz); }
+  else s.niz = 0;
+  lokalno.stavi('rijec-dana-stat', s);
+  statistika();
+}
+function statistika() {
+  const s = lokalno.uzmi('rijec-dana-stat', { odigrano: 0, pobjede: 0, niz: 0, najdulji: 0, raspodjela: [0, 0, 0, 0, 0, 0] });
+  $('#sOdigrano').textContent = s.odigrano;
+  $('#sPosto').textContent = s.odigrano ? Math.round(s.pobjede / s.odigrano * 100) : 0;
+  $('#sNiz').textContent = s.niz; $('#sNajdulji').textContent = s.najdulji;
+  const max = Math.max(1, ...s.raspodjela);
+  const sad = nacin === 'dan' && gotovo && pokusaji.at(-1)?.join('') === cilj.join('') ? pokusaji.length : 0;
+  $('#raspodjela').innerHTML = s.raspodjela.map((n, i) => `<div><span>${i + 1}</span><span class="t${sad === i + 1 ? ' sad' : ''}" style="width:${8 + n / max * 85}%">${n}</span></div>`).join('');
+}
+
+function prikaziKraj(svjeze) {
+  const pogodak = pokusaji.at(-1)?.join('') === cilj.join('');
+  const el = $('#poruka');
+  el.hidden = false;
+  el.innerHTML = pogodak
+    ? `<h2>${['Genijalno!', 'Sjajno!', 'Odlično!', 'Bravo!', 'Uf, dobro!', 'Za dlaku!'][pokusaji.length - 1]}</h2><p>Pogodio si u ${pokusaji.length}. pokušaju.</p>`
+    : `<h2>Idući put!</h2><p>Tražena riječ je bila <b style="color:#fff">${esc(cilj.join(''))}</b>.</p>`;
+  el.innerHTML += `<div class="gumbi" style="justify-content:center">
+      ${nacin === 'dan' ? `<button type="button" class="gumb zeleni" id="podijeli">${IG.ikona('dijeli')} Podijeli</button>` : ''}
+      <button type="button" class="gumb zuti" id="jos">${IG.ikona('osvjezi')} ${nacin === 'dan' ? 'Vježbaj dalje' : 'Nova riječ'}</button></div>
+      ${nacin === 'dan' ? '<p style="font-size:14px">Nova riječ dana stiže u ponoć.</p>' : ''}`;
+  $('#jos').onclick = () => { postaviNacin('vjezba'); };
+  const p = $('#podijeli');
+  if (p) p.onclick = () => {
+    const mreza = pokusaji.map(x => ocijeni(x).map(b => ({ zeleno: '🟩', zuto: '🟨', sivo: '⬛' }[b])).join('')).join('\n');
+    dijeli(`Riječ dana #${brojDana() + 1} ${pogodak ? pokusaji.length : 'X'}/6\n\n${mreza}\n\n${location.href.split('#')[0]}`);
+  };
+  if (svjeze) { if (pogodak) { zvuk.pobjeda(); konfeti(); } else zvuk.poraz(); }
+  statistika();
+}
+
+function postaviNacin(n) {
+  nacin = n;
+  $$('.nacin button').forEach(b => b.setAttribute('aria-pressed', b.dataset.nacin === n));
+  novaIgra();
+}
+
+$('#tipkovnica').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) unos(b.dataset.t); });
+$$('.nacin button').forEach(b => b.onclick = () => postaviNacin(b.dataset.nacin));
+// fizička tipkovnica: L+J → LJ, N+J → NJ, D+Ž → DŽ
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Enter') { e.preventDefault(); return unos('ENTER'); }
+  if (e.key === 'Backspace') { e.preventDefault(); return unos('⌫'); }
+  const k = e.key.toLocaleUpperCase('hr');
+  if (!/^[A-ZČĆĐŠŽ]$/.test(k) || 'QWXY'.includes(k)) return;
+  const zadnji = trenutni.at(-1);
+  if (!gotovo && ((k === 'J' && (zadnji === 'L' || zadnji === 'N')) || (k === 'Ž' && zadnji === 'D'))) { trenutni[trenutni.length - 1] = zadnji + k; zvuk.klik(); return crtajMrezu(); }
+  unos(k);
+});
+novaIgra();
+</script>
+</body>
+</html>
