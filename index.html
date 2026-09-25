@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#120a33">
 <link rel="icon" href="zajednicko/favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="zajednicko/apple-touch-icon.png">
-<link rel="stylesheet" href="zajednicko/igre.css?v=09b9727d">
+<link rel="stylesheet" href="zajednicko/igre.css?v=cc838426">
 <style>
   .igraliste { max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
   .nacin { display: flex; justify-content: center; gap: 8px; }
@@ -36,6 +36,21 @@
   .raspodjela div { display: flex; gap: 8px; align-items: center; font-weight: 600; }
   .raspodjela span.t { height: 22px; min-width: 24px; background: #ffffff26; border-radius: 6px; padding: 0 8px; display: flex; align-items: center; justify-content: flex-end; font-size: 13px; }
   .raspodjela span.t.sad { background: var(--zelena); color: #033117; }
+  @media (max-width: 700px) {
+    /* statistika i poruka na kraju igre iskaču preko ploče umjesto da budu ispod nje */
+    .stupci > .igraliste, .stupci > #kraj { grid-area: 1 / 1; }
+    #kraj { display: none; align-self: start; z-index: 5; margin-top: 44px; background: #1a0d48f5; box-shadow: 0 20px 60px #000c, 0 0 0 2px var(--zelena); }
+    body.kraj-otvoren #kraj { display: block; }
+    .igraliste { gap: 10px; }
+    .mreza, .red { gap: 6px; }
+    .mreza { width: min(100%, 340px, calc((var(--igra-v, 100vh) - 240px) * 5 / 6 + 24px)); }
+    .polje { border-radius: 9px; }
+    .tipkovnica { gap: 6px; }
+    .tipkovnica .r { gap: 3px; }
+    .tipka { height: 46px; font-size: 16px; border-radius: 8px; }
+    .tipka.siroka { font-size: 11px; }
+    .statistika b { font-size: 24px; }
+  }
 </style>
 </head>
 <body data-igra="igra-rijec-dana">
@@ -66,7 +81,7 @@
   </div>
 </main>
 <footer class="ig-dno"></footer>
-<script src="zajednicko/igre.js?v=4689b224"></script>
+<script src="zajednicko/igre.js?v=467e127a"></script>
 <script src="rijeci.js?v=25701e08"></script>
 <script>
 'use strict';
@@ -105,7 +120,7 @@ function novaIgra() {
   trenutni = [];
   gotovo = pokusaji.length >= 6 || pokusaji.some(p => p.join('') === cilj.join(''));
   crtajMrezu(); crtajTipkovnicu(); statistika();
-  $('#poruka').hidden = true;
+  $('#poruka').hidden = true; document.body.classList.remove('kraj-otvoren');
   if (gotovo) prikaziKraj(false);
 }
 
@@ -184,9 +199,12 @@ function prikaziKraj(svjeze) {
     : `<h2>Idući put!</h2><p>Tražena riječ je bila <b style="color:#fff">${esc(cilj.join(''))}</b>.</p>`;
   el.innerHTML += `<div class="gumbi" style="justify-content:center">
       ${nacin === 'dan' ? `<button type="button" class="gumb zeleni" id="podijeli">${IG.ikona('dijeli')} Podijeli</button>` : ''}
-      <button type="button" class="gumb zuti" id="jos">${IG.ikona('osvjezi')} ${nacin === 'dan' ? 'Vježbaj dalje' : 'Nova riječ'}</button></div>
+      <button type="button" class="gumb zuti" id="jos">${IG.ikona('osvjezi')} ${nacin === 'dan' ? 'Vježbaj dalje' : 'Nova riječ'}</button>
+      <button type="button" class="gumb samo-mob" id="zatvoriKraj">Pogledaj ploču</button></div>
       ${nacin === 'dan' ? '<p style="font-size:14px">Nova riječ dana stiže u ponoć.</p>' : ''}`;
   $('#jos').onclick = () => { postaviNacin('vjezba'); };
+  document.body.classList.add('kraj-otvoren');
+  $('#zatvoriKraj').onclick = () => document.body.classList.remove('kraj-otvoren');
   const p = $('#podijeli');
   if (p) p.onclick = () => {
     const mreza = pokusaji.map(x => ocijeni(x).map(b => ({ zeleno: '🟩', zuto: '🟨', sivo: '⬛' }[b])).join('')).join('\n');
